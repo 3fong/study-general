@@ -157,7 +157,7 @@ splice也有一些局限，它的两个文件描述符参数中有一个必须�
 [彻底搞懂零拷贝（Zero-Copy）技术](https://zhuanlan.zhihu.com/p/362499466)
 
 
-### 多路复用器 select|poll|epoll
+### 多路复用器 select|poll|epoll|kqueue|/dev/poll|eventport
 
 - 多进程/多线程连接处理模型    
 
@@ -203,24 +203,87 @@ ET,Edge Triggered，边缘触发模式。内核进程只发生一次就绪消息
 
 ## 参数优化
 
+nginx配置文件主要分三个部分:  全局块,events块,http块  
 
+全局块: 从配置开头到events块间的部分.定义影响整个nginx运行的配置.nginx进程数(CPU总核数)    
+events块: 定义服务器和用户网络连接.
+http块: nginx服务器的核心配置.用于定义实际的请求控制.它又可以分为http全局块和server块.    
+> http全局块: http公共配置.配置文件引入,MIME-TYPE,日志,连接    
+> server块: 相当于虚拟主机.划分实际的服务主机,节省服务器硬件成本.
+    > 全局server块: 监听配置,主机名称和ip
+    > location块: 匹配请求后进行特定处理.
 
+### 全局块
 
+worker_processes auto: 定义worker进程数量.推荐值为cpu核数或其整数倍,不确定时可以选auto    
+worker_cpu_affinity 01 10: 绑定worker进程和具体内核.内核使用二进制标识,与worker_processes定义worker数相匹配  
+![worker_cpu_affinity](./pic/conf_all.png)
+worker_rlimit_nofile 65535: 单worker可以打开的最多文件数量.默认值与linux最大文件描述符数量相同
 
+### events块
 
+worker_connections 1024: 单worker进程最大并发连接数.不能超过worker_rlimit_nofile值    
+accept_mutex on: 开启访问互斥.on(默认)开启,worker串行处理访问;off:worker竞争访问,会造成惊群    
+accept_mutex_delay 500ms: 队首worker获取互斥锁间隔    
+multi_accept on: on:worker进程一次接受所有请求;off:一次接收一个请求.如果nginx使用kqueue连接方法，那么这条指令会被忽略，因为这个方法会报告在等待被接受的新连接的数量。    
+use epoll: 设置worker与客户端连接处理方式.取值范围select|poll|epoll|kqueue|/dev/poll|eventport.如果不设置nginx会自动选择最佳方式.    
 
+### http块
 
+default_type application/octet-stream: 对于无扩展名的文件,使用application/octet-stream,作为八进制流文件处理    
+sendfile on: 开启linux sendfile零拷贝.CentOS6 及其以上版本支持 sendfile 零拷贝.    
+tcp_nopush on: 当sendfile开启后,是否拆分响应头和数据包.on:拆分.单独在首包中发送响应头信息,数据包随后单独发送,数据包中不再包含响应头.off: 响应完整的头和数据包.    
+tcp_nodelay on: 延迟发送.on:关闭发送缓存,适合小数据;off:开启发送缓存,适合图片等大数据量文件    
+keepalive_timeout 60: 长连接有效期.到时连接自动关闭,单位秒    
+keepalive_requests 10000: 长连接最多可以发送的请求数.需要按实际情况设置.    
+client_body_timeout 10: 设置客户端获取nginx响应的超时时间.即客户端发送请求到接收到响应的最长间隔.若超时,则认为本次请求失败    
 
+#### location 块
 
+- 路径匹配规则
 
+1 优先级规则
 
+> 精确匹配 > 短路匹配 > 正则匹配 > 长路径匹配 > 普通匹配 
 
+精确匹配: = /xxx
+短路匹配: ^~ /xxx 只要符合该条件将不再匹配其他路径   
+正则匹配:     
 
+> ~: 区分大小写    
+> ~*: 不区分大小写    
 
+长路径匹配: /xxx/yyy    
+普通匹配: /xxx    
+
+#### 缓存配置
+
+nginx缓存response,实现类似CDN的数据托底作用.实现服务降级.
+两部分组成: http全局块和局部定义server块,location块    
+
+- http块
+
+proxy_cache_path: nginx缓存路径及配置   
+proxy_temp_path: 缓存临时目录    
+
+- 局部定义
+
+proxy_cache mycache: 指定缓存key内存区域名称    
+proxy_cache_key $host$request_uri$arg_age: 缓存key组成    
+proxy_cache_bypass $arg_age: 不取缓存值的条件.如果变量值非空非0,则不使用缓存值    
+proxy_cache_methods GET HEAD: 指定缓存方法类型.默认为GET,HEAD,不缓存POST    
+proxy_no_cache $aaa $bbb $ccc: 指定对本次请求是否不做缓存。只要有一个不为 0，就不对该请求结果缓存。    
+proxy_cache_purge $ddd $eee $fff: 指定是否清除缓存 key.值非空非0则会被清除    
+proxy_cache_lock on: 是否采用互斥方式回源.on:采用.一次只能有一个请求访问来源服务,其他请求只能等待缓存中有值或者缓存锁释放.    
+proxy_cache_lock_timeout 5s: 再次生成回源互斥锁的时限。    
+proxy_cache_valid 5s: 
 
 
 ## nginx相关资料
-
+[开发指南](https://nginx.org/en/docs/dev/development_guide.html)
+[NGINX-Cookbook](./NGINX-Cookbook-2nd-ed-2022.pdf)
+[nginx简介](./%E5%BC%80%E8%AF%BE%E5%90%A7-03%E5%8F%8D%E5%90%91%E4%BB%A3%E7%90%86%E6%9C%8D%E5%8A%A1%E5%99%A8Nginx.pdf)
+[nginx基础概览](https://www.w3cschool.cn/nginx/sd361pdz.html)
 [接入层nginx架构及模块介绍分享](https://blog.didiyun.com/index.php/2020/04/26/%E6%8E%A5%E5%85%A5%E5%B1%82nginx%E6%9E%B6%E6%9E%84%E5%8F%8A%E6%A8%A1%E5%9D%97%E4%BB%8B%E7%BB%8D%E5%88%86%E4%BA%AB/)
 
 
