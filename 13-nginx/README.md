@@ -219,4 +219,22 @@ ET,Edge Triggered，边缘触发模式。内核进程只发生一次就绪消息
 
 
 
-nginx相关资料
+## nginx相关资料
+
+[接入层nginx架构及模块介绍分享](https://blog.didiyun.com/index.php/2020/04/26/%E6%8E%A5%E5%85%A5%E5%B1%82nginx%E6%9E%B6%E6%9E%84%E5%8F%8A%E6%A8%A1%E5%9D%97%E4%BB%8B%E7%BB%8D%E5%88%86%E4%BA%AB/)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
