@@ -496,11 +496,11 @@ http {
 
 
 ## nginx相关资料
-[开发指南](https://nginx.org/en/docs/dev/development_guide.html)
-[NGINX-Cookbook](./NGINX-Cookbook-2nd-ed-2022.pdf)
-[nginx简介](./%E5%BC%80%E8%AF%BE%E5%90%A7-03%E5%8F%8D%E5%90%91%E4%BB%A3%E7%90%86%E6%9C%8D%E5%8A%A1%E5%99%A8Nginx.pdf)
-[nginx基础概览](https://www.w3cschool.cn/nginx/sd361pdz.html)
-[接入层nginx架构及模块介绍分享](https://blog.didiyun.com/index.php/2020/04/26/%E6%8E%A5%E5%85%A5%E5%B1%82nginx%E6%9E%B6%E6%9E%84%E5%8F%8A%E6%A8%A1%E5%9D%97%E4%BB%8B%E7%BB%8D%E5%88%86%E4%BA%AB/)
+[开发指南](https://nginx.org/en/docs/dev/development_guide.html)    
+[NGINX-Cookbook](./NGINX-Cookbook-2nd-ed-2022.pdf)    
+[nginx简介](./%E5%BC%80%E8%AF%BE%E5%90%A7-03%E5%8F%8D%E5%90%91%E4%BB%A3%E7%90%86%E6%9C%8D%E5%8A%A1%E5%99%A8Nginx.pdf)    
+[nginx基础概览](https://www.w3cschool.cn/nginx/sd361pdz.html)    
+[接入层nginx架构及模块介绍分享](https://blog.didiyun.com/index.php/2020/04/26/    %E6%8E%A5%E5%85%A5%E5%B1%82nginx%E6%9E%B6%E6%9E%84%E5%8F%8A%E6%A8%A1%E5%9D%97%E4%BB%8B%E7%BB%8D%E5%88%86%E4%BA%AB/)    
 
 
 
