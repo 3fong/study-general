@@ -275,8 +275,223 @@ proxy_cache_methods GET HEAD: 指定缓存方法类型.默认为GET,HEAD,不缓�
 proxy_no_cache $aaa $bbb $ccc: 指定对本次请求是否不做缓存。只要有一个不为 0，就不对该请求结果缓存。    
 proxy_cache_purge $ddd $eee $fff: 指定是否清除缓存 key.值非空非0则会被清除    
 proxy_cache_lock on: 是否采用互斥方式回源.on:采用.一次只能有一个请求访问来源服务,其他请求只能等待缓存中有值或者缓存锁释放.    
-proxy_cache_lock_timeout 5s: 再次生成回源互斥锁的时限。    
-proxy_cache_valid 5s: 
+proxy_cache_lock_timeout 5s: 再次生成回源互斥锁(proxy_cache_lock)的时限。当超过设置时间,请求将通过代理服务而不被缓存        
+proxy_cache_valid 5s: 对指定的 HTTP 状态码的响应数据进行缓存，并指定缓存时间。默认指定的状态码为200，301，302。    
+proxy_cache_use_stale http_404 http_500: 设置托底缓存条件.当响应指定状态码时,则使用proxy_cache_valid中缓存数据    
+expires 3m: 为请求的静态资源开启浏览器端的缓存
+
+#### nginx变量
+
+nginx.conf为perl脚本.
+
+- 自定义变量:    
+
+```
+set $aaa "niu";
+
+location /xxx {
+    $aaa "me";
+}
+```
+
+- 内置变量
+
+```
+$args 请求中的参数;
+$binary_remote_addr 远程地址的二进制表示
+$body_bytes_sent 已发送的消息体字节数
+$content_length HTTP 请求信息里的"Content-Length"
+$content_type 请求信息里的"Content-Type"
+$document_root 针对当前请求的根路径设置值
+$document_uri 与$uri 相同
+$host 请求信息中的"Host"，如果请求中没有 Host 行，则等于设置的服务器名; 
+$http_cookie cookie 信息
+$http_referer 来源地址
+$http_user_agent 客户端代理信息
+$http_via 最后一个访问服务器的 Ip 地址
+$http_x_forwarded_for 相当于网络访问路径。 
+$limit_rate 对连接速率的限制 
+$remote_addr 客户端地址
+$remote_port 客户端端口号
+$remote_user 客户端用户名，认证用
+$request 用户请求信息
+$request_body 用户请求主体
+$request_body_file 发往后端的本地文件名称 
+$request_filename 当前请求的文件路径名
+$request_method 请求的方法，比如"GET"、"POST"等
+$request_uri 请求的 URI，带参数 
+$server_addr 服务器地址，如果没有用 listen 指明服务器地址，使用这个变量将发起一次系统调用以取得地址(造成资源浪费)
+$server_name 请求到达的服务器名
+$server_port 请求到达的服务器端口号
+$server_protocol 请求的协议版本，"HTTP/1.0"或"HTTP/1.1"
+$uri 请求的 URI，可能和最初的值有不同，比如经过重定向之类的
+```
+
+### 日志管理
+
+日志记录的请求范围是不同的。Nginx 日志一般可以指定三个范围：    
+http{}模块范围、server{}模块范围，与 location{}模块范围。
+
+Nginx 的日志分为两类：访问日志与错误日志。Nginx 整个系统的默认日志在生成预编译文件 makefile 时就已经默认给配置好了。当然，无论是访问日志还是错误日志，其默认路径与名称在 nginx.conf 中均是可以修改的。在配置文件中不仅定义了日志文件的路径及名称，还定义了日志格式。  
+
+- 定义日志格式:    
+
+log_format name [escape=default|json|none] string ...;
+
+escape: 设置参数转义.默认是default.none:禁止转义.
+
+示例:
+
+```
+log_format combined '$remote_addr - $remote_user [$time_local] '
+                    '"$request" $status $body_bytes_sent '
+                    '"$http_referer" "$http_user_agent"';
+```
+
+```
+$remote_addr：获取访问者的 IP 地址。若当前 Nginx 是反代服务器，则此变量获取到的就是客户端的 IP 地址；若当前 Nginx 是静态代理服务器，则此变量获取到的是反代服务器的 IP 地址。
+$http_x_forwarded_for：获取客户端浏览器的 IP。若当前 Nginx 是反代服务器，则此变 量获取到的值为杠(-)。若当前 Nginx 是静态代理服务器，则此变量获取到的是客户端的 IP 地址。 
+$remote_user：获取访问者的用户名。
+$time_local：获取请求访问的时间与时区。
+$request：获取请求的相关信息，包含请求方式、请求的 URI，及访问协议。
+$status：后端服务器向其返回的状态码，例如 200。 
+$body_bytes_sent：后端服务器向客户端发送的响应体内容字节数。 
+$http_referer：获取当前请求是从哪个页面过来的。其值在这里显示为杠(-)。 
+$http_user_agent：用户所使用的代理，一般为浏览器。
+```
+
+
+- 访问日志
+
+```
+Syntax:	access_log path [format [buffer=size] [gzip[=level]] [flush=time] [if=condition]];
+access_log off;
+Default:	
+access_log logs/access.log combined;
+Context:	http, server, location, if in location, limit_except
+```
+
+
+- 错误日志
+
+```
+Syntax:	error_log file [level];
+Default:	
+error_log logs/error.log error;
+Context:	main, http, mail, stream, server, location
+```
+
+错误日志格式不支持自定义.     
+错误日志级别由低到高有：[debug | info | notice | warn | error | crit | alert | emerg]，Nginx默认为 error，级别越高记录的信息越少    
+错误日志默认是开启的。关闭错误日志的写法为 error_log /dev/null;
+
+-  open_log_file_cache
+
+用于打开日志文件读缓存，将日志信息读取到缓存中，以加快对日志的访问
+
+```
+Syntax:	        
+    open_log_file_cache max=N [inactive=time] [min_uses=N] [valid=time];
+    open_log_file_cache off;
+Default:	open_log_file_cache off;
+Context:	http, server, location
+```
+
+#### 静态代理
+
+Nginx 静态代理是指，将所有的静态资源，例如，css、js、html、jpg 等资源存放到 Nginx服务器，而不存放在应用服务器 Tomcat 中。当客户端发出的请求是对这些静态资源的请求时，Nginx 直接将这些静态资源响应给客户端，而无需提交给应用服务器处理。这样就减轻了应用服务器的压力。
+
+root 后指定静态文件的根目录
+```
+location ~.*\.(css|js|html|jpg|png)$ {
+    root /opt/statics;
+}
+
+```
+
+#### 页面压缩
+
+场景压缩协议:
+
+浏览器中最常见的压缩算法有：
+deflate：是一种过时的压缩算法，是 huffman 编码的一种加强。
+gzip：是目前大多数浏览器都支持的一种压缩算法，是对 deflate 的改进。
+sdch：谷歌开发的一种压缩算法，一种全新的压缩思路。deflate 与 gzip 的的压缩思想是，修改传输数据的编码格式以达到减少体量的目的，其最终传输的数据并没有减少。而sdch 压缩算法的思想是，让冗余的数据仅出现一次，其最终传输的数据减少了。
+Zopfli：谷歌开发的一种压缩算法，Deflate 压缩算法的改进。比标准的gzip -9要小 3%-8%，但压缩用时是 gzip -9 的 80 多倍。
+br：即 Brotli，谷歌开发的一种压缩算法，是一种全新的数据格式。与 Zopfli 相比，压缩率能够降低 20%-26%。Brotli -1 有着与 Gzip -9 相近的压缩比和更快的压缩解压速度。
+
+- 常用设置
+
+http全局块上设置参数:    
+
+gzip on; 开启gzip,默认为off    
+gzip_min_length 5k; 指定最小启用压缩的文件大小。    
+gzip_comp_level 4; 指定压缩级别，取值为 1-9，数字越大，压缩比越高，但压缩所用时间会越长。默认为1，建议使用 4。    
+gzip_buffers 4 16k; “4”表示的是缓存颗粒数量，而“16k”表示的是缓存颗粒大小。    
+gzip_vary on; 开启动态压缩。默认值 off。    
+gzip_types mimeType; 通过 MIME 类型来指定要压缩的文件类型。默认值 text/html
+
+
+#### 反向代理
+
+通过在 location{}中添加通行代理 proxy_pass可以指定当前Nginx 所要代理的真正服务器
+
+client_max_body_size 100k; Nginx 允许客户端请求的单文件最大大小，单位字节。    
+client_body_buffer_size 80k; Nginx 为客户端请求设置的缓存大小。    
+proxy_buffering on: 开启从后端被代理服务器的响应内容缓冲区。默认值 on。    
+proxy_buffers 4 8k; 该指令用于设置缓冲区的数量与大小。从被代理的后端服务器取得的响应内容，会缓存到这里。    
+proxy_busy_buffers_size 16k; 高负荷下缓存大小，其默认值为一般为单个 proxy_buffers 的 2 倍。    
+proxy_connect_timeout 60s; Nginx 跟后端服务器连接超时时间。默认 60 秒。   
+proxy_read_timeout 60s; Nginx 发出请求后等待后端服务器响应的最长时限。默认 60 秒。
+
+#### 负载均衡
+
+将对请求的处理分摊到多个操作单元上进行
+
+- 分类: 
+
+软硬件分类:    
+1 硬件负载均衡.硬件负载均衡器的性能稳定，且有生产厂商作为专业的服务团队。但其成本很高.常用:F5、Array、深信服、梭子鱼等
+2 软件负载均衡.成本几乎为零，基本都是开源软件。例如，LVS、HAProxy、Nginx 等。
+
+负载工作层分类:    
+负载均衡就其所工作的 OSI 层次，在生产应用层面分为两类：
+七层负载均衡与四层负载均衡。当然，为四层负载均衡提供更为底层实现的，还有三层负载均衡与二层负载均衡。    
+
+七层负载均衡：应用层，基于 HTTP 协议，通过虚拟 URL 将请求分配到真实服务器。一般应用于 B/S 架构系统。Nginx 就是七层负载均衡。    
+四层负载均衡：传输层，基于 TCP 协议，通过“虚拟 IP + 端口号” 将请求分配到真实服务器。一般应用于 C /S 架构系统。例如，LVS、F5、Nginx Plus 都属于四层负载均衡。    
+三层负载均衡：网络层，基于 IP 协议，通过虚拟 IP 将请求分配到真实服务器。    
+二层负载均衡：链路层，基于虚拟 MAC 地址将请求分配到真实服务器。    
+
+
+nginx负载均衡配置:
+
+```
+http {
+    upstream load_balance {
+        server backend1.example.com weight=5;
+        server 127.0.0.1:8080       max_fails=3 fail_timeout=30s;
+        server unix:/tmp/backend3;
+        server backup1.example.com  backup;
+    }
+    server {
+        location /xx {
+            proxy_pass http://load_balance;
+        }
+    }
+}
+```
+
+- nginx负载均衡策略
+
+内置:轮询, ip_hash, least_conn同时也支持第三方的负载均衡    
+
+
+1 轮询:按配置主机权重分发请求    
+2 ip_hash:基于客户端 IP 的分配请求.不能和backup同时使用;服务器宕机时,需要手动指定down属性,否则请求仍会分发到该服务器
+3 least_conn:把请求转发给连接数最少的服务器
+
+
 
 
 ## nginx相关资料
